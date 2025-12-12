@@ -2,38 +2,30 @@ import discord
 import re
 import asyncio
 import json
-import os
 from datetime import datetime
+import os
 
 TOKEN = os.getenv("TOKEN")
 
-# Canais onde cada usuário posta capítulos
 CANAIS = {
     "skkypper": 1444038643239878786,
     "Cain": 1444054228501921915,
     "Ryujin": 1444054190258131096
 }
 
-# Canal onde o ranking geral ficará fixo
 CANAL_RANKING = 1449048189486235728
-
-# Canal onde o ranking mensal será enviado no dia 01
 CANAL_MENSAL = 1444038643239878781
 
-# Arquivos de dados
 ARQUIVO_MENSAGEM = "mensagem_ranking.txt"
 ARQUIVO_XP = "xp.json"
 
-XP_POR_CAPITULO = 10  # XP ganho por capítulo
+XP_POR_CAPITULO = 10
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
 
-# -----------------------------
-# Utilitários de XP / medalha
-# -----------------------------
 def carregar_xp():
     try:
         with open(ARQUIVO_XP, "r") as f:
@@ -57,9 +49,6 @@ def medalha_por_nivel(nivel):
     return "Nenhuma"
 
 
-# -----------------------------
-# Contar capítulos do mês atual
-# -----------------------------
 async def contar_capitulos_mes():
     resultados = {}
     agora = datetime.now()
@@ -74,11 +63,9 @@ async def contar_capitulos_mes():
 
         async for msg in canal.history(limit=None):
             data = msg.created_at
-
             if data.year == agora.year and data.month == agora.month:
                 texto = msg.content.lower()
                 blocos = re.findall(r'\bcap\s*([\d,\s]+)', texto)
-
                 for bloco in blocos:
                     numeros = bloco.split(',')
                     for n in numeros:
@@ -90,9 +77,6 @@ async def contar_capitulos_mes():
     return resultados
 
 
-# -----------------------------
-# Atualizar ranking geral fixo
-# -----------------------------
 async def atualizar_ranking():
     resultados = await contar_capitulos_mes()
     xp_data = carregar_xp()
@@ -107,17 +91,14 @@ async def atualizar_ranking():
 
     ranking = sorted(resultados.items(), key=lambda x: x[1], reverse=True)
     total_geral = sum(resultados.values())
-
     podio = ["🥇", "🥈", "🥉"]
 
     texto = "**🏆 Ranking Geral do Mês (Atualizado automaticamente) 🏆**\n\n"
-
     for i, (usuario, total) in enumerate(ranking):
         emoji = podio[i] if i < 3 else "🔹"
         xp = xp_data[usuario]["xp"]
         nivel = xp_data[usuario]["nivel"]
         medalha = xp_data[usuario]["medalha"]
-
         texto += (
             f"{emoji} **{usuario}** — {total} capítulos\n"
             f"   ➤ XP: {xp} | Nível: {nivel} | Medalha: {medalha}\n\n"
@@ -132,7 +113,6 @@ async def atualizar_ranking():
         mensagem_id = None
 
     canal = client.get_channel(CANAL_RANKING)
-
     if mensagem_id is None:
         msg = await canal.send(texto)
         with open(ARQUIVO_MENSAGEM, "w") as f:
@@ -147,33 +127,25 @@ async def atualizar_ranking():
                 f.write(str(msg.id))
 
 
-# -----------------------------
-# Enviar ranking mensal (dia 01)
-# -----------------------------
 async def enviar_ranking_mensal():
     resultados = await contar_capitulos_mes()
     xp_data = carregar_xp()
 
     ranking = sorted(resultados.items(), key=lambda x: x[1], reverse=True)
     total_mes = sum(resultados.values())
-
     podio = ["🥇", "🥈", "🥉"]
 
-    texto = "@everyone\n"
-    texto += "**📅 Ranking do Mês que se Passou! 📅**\n\n"
-
+    texto = "@everyone\n**📅 Ranking do Mês que se Passou! 📅**\n\n"
     for i, (usuario, total) in enumerate(ranking):
         emoji = podio[i] if i < 3 else "🔹"
         nivel = xp_data[usuario]["nivel"]
         medalha = xp_data[usuario]["medalha"]
-
         texto += (
             f"{emoji} **{usuario}** — {total} capítulos\n"
             f"   ➤ Nível: {nivel} | Medalha: {medalha}\n\n"
         )
 
     texto += f"\n📘 **Total do mês: {total_mes} capítulos!**\n"
-
     campeao, pontos = ranking[0]
     texto += f"\n🎉 **Parabéns {campeao}!** Você foi o maior uploader do mês! 🎉\n"
     texto += "🏅 Receba sua gratificação simbólica pelo excelente trabalho!\n"
@@ -182,24 +154,15 @@ async def enviar_ranking_mensal():
     await canal.send(texto)
 
 
-# -----------------------------
-# Tarefa diária (checa dia 01)
-# -----------------------------
 async def tarefa_diaria():
     await client.wait_until_ready()
-
     while not client.is_closed():
         agora = datetime.now()
-
         if agora.day == 1 and agora.hour == 0 and agora.minute == 0:
             await enviar_ranking_mensal()
-
         await asyncio.sleep(60)
 
 
-# -----------------------------
-# EVENTOS DO BOT
-# -----------------------------
 @client.event
 async def on_ready():
     print(f"Bot logado como {client.user}")
@@ -211,7 +174,6 @@ async def on_ready():
 async def on_message(message):
     if message.author.bot:
         return
-
     if message.channel.id in CANAIS.values():
         await atualizar_ranking()
 
