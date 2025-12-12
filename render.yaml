@@ -1,6 +1,7 @@
 services:
   - type: worker
-    name: bot-discord-capitulos
+    name: bot-discord-capitulos-1
     env: python
     buildCommand: "pip install -r requirements.txt"
+
     startCommand: "./start.sh"
